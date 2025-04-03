@@ -1,27 +1,20 @@
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAllMembers, getAllTrainers, getCheckInsThisMonth, getPaymentsThisMonth, getUpcomingPayments } from "@/lib/services";
+import { getAllMembers, getAllTrainers, getCheckInsThisMonth, getPaymentsThisMonth } from "@/lib/services";
 import { CalendarCheck, CreditCard, Dumbbell, Users } from "lucide-react";
 import { useEffect, useState } from "react";
+
+interface CheckIn {
+  memberName: string;
+  date: string;
+}
 
 export default function DashboardPage() {
   const [membersCount, setMembersCount] = useState<number>(0);
   const [trainersCount, setTrainersCount] = useState<number>(0);
   const [paymentsAmount, setPaymentsAmount] = useState<string>("R$ 0");
   const [checkInsCount, setCheckInsCount] = useState<number>(0);
-  interface Payment {
-    id: string;
-    memberName: string;
-    amount: number;
-  }
-
-  const [upcomingPayments, setUpcomingPayments] = useState<Payment[]>([]);
-  interface CheckIn {
-    memberName: string;
-    date: string;
-  }
-
   const [recentCheckIns, setRecentCheckIns] = useState<CheckIn[]>([]);
 
   useEffect(() => {
@@ -34,25 +27,17 @@ export default function DashboardPage() {
         setTrainersCount(trainers.length);
 
         const payments = await getPaymentsThisMonth();
-        setPaymentsAmount(`R$ ${payments.toFixed(2)}`);
+        setPaymentsAmount(`R$ ${Number(payments).toFixed(2)}`);
 
         const checkIns = await getCheckInsThisMonth();
         setCheckInsCount(checkIns.length);
 
-        const upcoming = await getUpcomingPayments();
-        const formattedUpcoming = upcoming.map((payment: { id: string; memberName?: string; amount?: number }) => ({
-          id: payment.id,
-          memberName: payment.memberName || "Desconhecido",
-          amount: payment.amount || 0,
-        }));
-        setUpcomingPayments(formattedUpcoming);
-
         // Criamos um mapa para buscar rapidamente os nomes dos membros
         const membersMap = new Map(members.map((member) => [member.id, member.name]));
-  
+
         const formattedCheckIns = checkIns.slice(0, 5).map((checkIn) => ({
           memberName: membersMap.get(checkIn.memberId) || "Desconhecido",
-          date: checkIn.date || "Data não disponível",
+          date: new Date(checkIn.date).toLocaleDateString("pt-BR") || "Data não disponível",
         }));
         setRecentCheckIns(formattedCheckIns);
       } catch (error) {
@@ -75,29 +60,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Próximos Pagamentos</CardTitle>
-            <CardDescription>Membros com pagamentos nos próximos 7 dias</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {upcomingPayments.length > 0 ? (
-                upcomingPayments.map(payment => (
-                  <div key={payment.id} className="flex justify-between">
-                    <span>{payment.memberName}</span>
-                    <span className="font-bold text-green-600">
-                      R$ {Number(payment.amount).toFixed(2)}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500">Nenhum pagamento nos próximos 7 dias</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
+        {/* Últimos Check-ins */}
         <Card>
           <CardHeader>
             <CardTitle>Atividade Recente</CardTitle>
@@ -122,6 +85,7 @@ export default function DashboardPage() {
   );
 }
 
+// Componente reutilizável para os cards do dashboard
 interface DashboardCardProps {
   title: string;
   value: string;

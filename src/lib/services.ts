@@ -111,20 +111,17 @@ export async function getCheckInsThisMonth() {
 
 export async function getUpcomingPayments() {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0); // Zerar horas para comparar corretamente
 
   const nextWeek = new Date();
   nextWeek.setDate(today.getDate() + 7);
-  nextWeek.setHours(23, 59, 59, 999);
-
-  const todayStr = today.toISOString().split("T")[0];
-  const nextWeekStr = nextWeek.toISOString().split("T")[0];
+  nextWeek.setHours(23, 59, 59, 999); // Definir o fim do dia
 
   const querySnapshot = await getDocs(
     query(
       collection(db, COLLECTIONS.PAYMENTS),
-      where("dueDate", ">=", todayStr),
-      where("dueDate", "<=", nextWeekStr)
+      where("dueDate", ">=", today.toISOString().split("T")[0]), // Comparação com formato string 'YYYY-MM-DD'
+      where("dueDate", "<=", nextWeek.toISOString().split("T")[0])
     )
   );
 
