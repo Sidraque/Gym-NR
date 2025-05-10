@@ -2,7 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAllMembers, getAllTrainers, getCheckInsThisMonth, getPaymentsThisMonth } from "@/lib/services";
+import {
+  getDashboardData
+} from "@/lib/services";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -52,39 +54,25 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Obter todos os membros
-      const members = await getAllMembers();
-      
-      // Obter treinadores
-      const trainers = await getAllTrainers();
-      
-      // Obter pagamentos deste mês
-      const payments = await getPaymentsThisMonth();
-      
-      // Obter check-ins deste mês
-      const checkIns = await getCheckInsThisMonth();
-      
-      // Simular dados do mês anterior (em um sistema real, seria uma chamada de API diferente)
-      const membersLastMonth = members.length - Math.floor(Math.random() * 10);
-      const paymentsLastMonth = payments * 0.9;
-      const checkInsLastMonth = checkIns.length - Math.floor(Math.random() * 20);
+      // Usar a função agregada para buscar todos os dados de uma vez
+      const dashboardData = await getDashboardData();
       
       // Atualizar o estado com todos os dados
       setData({
-        membersCount: members.length,
-        membersLastMonth,
-        trainersCount: trainers.length,
-        paymentsAmount: payments,
-        paymentsLastMonth,
-        checkInsCount: checkIns.length,
-        checkInsLastMonth
+        membersCount: dashboardData.membersCount,
+        membersLastMonth: dashboardData.membersLastMonth,
+        trainersCount: dashboardData.trainersCount,
+        paymentsAmount: dashboardData.paymentsAmount,
+        paymentsLastMonth: dashboardData.paymentsLastMonth,
+        checkInsCount: dashboardData.checkInsCount,
+        checkInsLastMonth: dashboardData.checkInsLastMonth
       });
       
       // Criar um mapa para buscar rapidamente os nomes dos membros
-      const membersMap = new Map(members.map((member) => [member.id, member.name]));
+      const membersMap = new Map(dashboardData.members.map((member) => [member.id, member.name]));
       
       // Formatar os check-ins recentes
-      const formattedCheckIns = checkIns.slice(0, 5).map((checkIn) => ({
+      const formattedCheckIns = dashboardData.checkIns.slice(0, 5).map((checkIn) => ({
         memberId: checkIn.memberId,
         memberName: membersMap.get(checkIn.memberId) || "Desconhecido",
         date: new Date(checkIn.date).toLocaleDateString("pt-BR", {

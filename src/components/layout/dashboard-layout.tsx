@@ -26,7 +26,7 @@ const navigationItems = [
   { name: 'Check-ins', href: '/dashboard/checkins', icon: CalendarCheck },
 ];
 
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout, user } = useAuth();

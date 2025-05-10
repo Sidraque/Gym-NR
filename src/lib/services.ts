@@ -65,7 +65,74 @@ export async function deleteMember(id: string) {
   return id;
 }
 
-// Função para buscar pagamentos do mês
+/**
+ * Função auxiliar para obter datas de início e fim de um mês específico
+ */
+function getMonthDateRange(year: number, month: number) {
+  // Mês em JavaScript é 0-indexado (janeiro é 0)
+  const startOfMonth = new Date(year, month - 1, 1);
+  const endOfMonth = new Date(year, month, 0);
+  
+  const startOfMonthStr = startOfMonth.toISOString().split('T')[0];
+  const endOfMonthStr = endOfMonth.toISOString().split('T')[0];
+  
+  return { startOfMonthStr, endOfMonthStr };
+}
+
+/**
+ * Função para buscar contagem de membros do mês anterior
+ */
+export async function getMembersLastMonth() {
+  try {
+    // Calcular o mês anterior
+    const currentDate = new Date();
+    const lastMonth = currentDate.getMonth(); // 0-indexado
+    const lastMonthYear = currentDate.getFullYear();
+    
+    // Contar quantos membros já estavam registrados até o final do mês anterior
+    // Vamos usar o campo registrationDate do membro
+    const endOfLastMonth = new Date(lastMonthYear, lastMonth + 1, 0); // Último dia do mês anterior
+    
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, COLLECTIONS.MEMBERS),
+        where("registrationDate", "<=", Timestamp.fromDate(endOfLastMonth))
+      )
+    );
+    
+    return querySnapshot.size;
+  } catch (error) {
+    console.error("Erro ao buscar membros do mês anterior:", error);
+    return 0;
+  }
+}
+
+/**
+ * Função para buscar pagamentos de um mês específico
+ */
+export async function getPaymentsByMonth(year: number, month: number) {
+  const { startOfMonthStr, endOfMonthStr } = getMonthDateRange(year, month);
+
+  const querySnapshot = await getDocs(
+    query(
+      collection(db, COLLECTIONS.PAYMENTS),
+      where("date", ">=", startOfMonthStr),
+      where("date", "<=", endOfMonthStr)
+    )
+  );
+
+  let totalAmount = 0;
+  querySnapshot.forEach(doc => {
+    const data = doc.data();
+    totalAmount += data.amount || 0;
+  });
+
+  return totalAmount;
+}
+
+/**
+ * Função para buscar pagamentos do mês atual
+ */
 export async function getPaymentsThisMonth() {
   // Obtém a data no formato YYYY-MM-DD
   const now = new Date();
@@ -83,15 +150,44 @@ export async function getPaymentsThisMonth() {
   let totalAmount = 0;
   querySnapshot.forEach(doc => {
     const data = doc.data();
-    console.log("Payment data:", data);
     totalAmount += data.amount || 0;
   });
 
-  console.log("Total Payments:", totalAmount);
   return totalAmount;
 }
 
-// Função para buscar check-ins do mês
+/**
+ * Função para buscar pagamentos do mês anterior
+ */
+export async function getPaymentsLastMonth() {
+  const now = new Date();
+  const lastMonth = now.getMonth(); // 0-indexado
+  const year = lastMonth === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const month = lastMonth === 0 ? 12 : lastMonth;
+  
+  return getPaymentsByMonth(year, month);
+}
+
+/**
+ * Função para buscar check-ins de um mês específico
+ */
+export async function getCheckInsByMonth(year: number, month: number) {
+  const { startOfMonthStr, endOfMonthStr } = getMonthDateRange(year, month);
+
+  const querySnapshot = await getDocs(
+    query(
+      collection(db, COLLECTIONS.CHECK_INS),
+      where("date", ">=", startOfMonthStr),
+      where("date", "<=", endOfMonthStr)
+    )
+  );
+
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+/**
+ * Função para buscar check-ins do mês atual
+ */
 export async function getCheckInsThisMonth() {
   // Obtém a data no formato YYYY-MM-DD
   const now = new Date();
@@ -107,6 +203,60 @@ export async function getCheckInsThisMonth() {
   );
 
   return querySnapshot.docs.map(doc => doc.data());
+}
+
+/**
+ * Função para buscar check-ins do mês anterior
+ */
+export async function getCheckInsLastMonth() {
+  const now = new Date();
+  const lastMonth = now.getMonth(); // 0-indexado
+  const year = lastMonth === 0 ? now.getFullYear() - 1 : now.getFullYear();
+  const month = lastMonth === 0 ? 12 : lastMonth;
+  
+  return getCheckInsByMonth(year, month);
+}
+
+/**
+ * Função agregada para buscar todos os dados do dashboard de uma vez
+ */
+export async function getDashboardData() {
+  try {
+    // Executar todas as chamadas em paralelo para melhor performance
+    const [
+      members,
+      membersLastMonthCount,
+      trainers,
+      paymentsThisMonth,
+      paymentsLastMonth,
+      checkInsThisMonth,
+      checkInsLastMonth
+    ] = await Promise.all([
+      getAllMembers(),
+      getMembersLastMonth(),
+      getAllTrainers(),
+      getPaymentsThisMonth(),
+      getPaymentsLastMonth(),
+      getCheckInsThisMonth(),
+      getCheckInsLastMonth()
+    ]);
+    
+    return {
+      members,
+      membersCount: members.length,
+      membersLastMonth: membersLastMonthCount,
+      trainers,
+      trainersCount: trainers.length,
+      paymentsAmount: paymentsThisMonth,
+      paymentsLastMonth,
+      checkIns: checkInsThisMonth,
+      checkInsCount: checkInsThisMonth.length,
+      checkInsLastMonth: checkInsLastMonth.length
+    };
+  } catch (error) {
+    console.error('Erro em getDashboardData:', error);
+    throw error;
+  }
 }
 
 export async function getUpcomingPayments() {
